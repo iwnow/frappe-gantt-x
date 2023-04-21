@@ -1,37 +1,53 @@
 import sass from 'rollup-plugin-sass';
 import { terser } from 'rollup-plugin-terser';
+import serve from 'rollup-plugin-serve';
 
-const dev = {
-    input: 'src/index.js',
-    output: {
-        name: 'Gantt',
-        file: 'dist/frappe-gantt.js',
-        sourcemap: true,
-        format: 'iife',
-    },
-    plugins: [
-        sass({
-            output: true,
-        }),
-    ],
-};
-const prod = {
-    input: 'src/index.js',
-    output: {
-        name: 'Gantt',
-        file: 'dist/frappe-gantt.min.js',
-        sourcemap: true,
-        format: 'iife',
-    },
-    plugins: [
+const inputPath = 'src/index.js';
+const libName = 'Gantt';
+const outFileName = 'frappe-gantt';
+
+export default [config(), config(true)];
+
+
+function config(options) {
+    const { prod } = options || {};
+    const plugins = [
         sass({
             output: true,
             options: {
-                outputStyle: 'compressed',
+                outputStyle: prod ? 'compressed' : 'expanded',
             },
         }),
-        terser(),
-    ],
-};
+    ];
+    if (!prod) {
+        plugins.push(
+            serve({
+                contentBase: [''],
+                openPage: '/index.html',
+                open: true,
+            })
+        );
+    } else {
+        plugins.push(terser());
+    }
+    return {
+        input: inputPath,
+        output: [
+            {
+                name: libName,
+                file: `dist/${outFileName}${prod ? '.min' : ''}.js`,
+                sourcemap: true,
+                format: 'iife',
+            },
+            {
+                name: libName,
+                file: `dist/${outFileName}.es${prod ? '.min' : ''}.js`,
+                sourcemap: true,
+                format: 'es',
+            }
+        ],
+        plugins: plugins,
+    };
+}
 
-export default [dev, prod];
+
