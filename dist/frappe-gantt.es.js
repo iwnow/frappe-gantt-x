@@ -522,6 +522,7 @@ class Bar {
     prepare_values() {
         this.invalid = this.task.invalid;
         this.height = this.gantt.options.bar_height;
+        this.hasBaseplan = !!this.task._bp_start && !!this.task._bp_end;
         this.x = this.compute_x();
         this.y = this.compute_y();
         this.corner_radius = this.gantt.options.bar_corner_radius;
@@ -531,8 +532,16 @@ class Bar {
         this.width = this.gantt.options.column_width * this.duration;
         this.progress_width =
             this.gantt.options.column_width *
-                this.duration *
-                (this.task.progress / 100) || 0;
+            this.duration *
+            (this.task.progress / 100) || 0;
+
+        if (this.hasBaseplan) {
+            this.bpDuration =
+                date_utils.diff(this.task._bp_end, this.task._bp_start, 'hour') /
+                this.gantt.options.step;
+            this.bpWidth = this.gantt.options.column_width * this.bpDuration;
+            this.bpX = this.compute_x(this.task._bp_start);
+        }
         this.group = createSVG('g', {
             class: 'bar-wrapper ' + (this.task.custom_class || ''),
             'data-id': this.task.id,
@@ -566,13 +575,68 @@ class Bar {
     }
 
     draw() {
+        if (typeof this.gantt.options.hooks?.beforeDrawBar === 'function') {
+            this.gantt.options.hooks.beforeDrawBar(this);
+        }
+
+        this.draw_baseplan();
         this.draw_bar();
         this.draw_progress_bar();
         this.draw_label();
         this.draw_resize_handles();
+
+        if (typeof this.gantt.options.hooks?.afterDrawBar === 'function') {
+            this.gantt.options.hooks.afterDrawBar(this);
+        }
+    }
+
+    draw_baseplan() {
+        if (!this.hasBaseplan) {
+            return;
+        }
+
+        let bpAttr = {
+            x: this.bpX,
+            y: this.y - 4,
+            width: this.bpWidth,
+            height: this.height + 8,
+            rx: this.corner_radius,
+            ry: this.corner_radius,
+            'stroke-dasharray': 4,
+            class: `bar bar-baseplan ${this.task.baseplan.custom_class || ''}`,
+        };
+
+        if (typeof this.gantt.options.hooks?.svgBaseplan === 'function') {
+            const custAttr = this.gantt.options.hooks.svgBaseplan(this.task, bpAttr);
+            Object.assign(bpAttr, custAttr || {});
+        }
+
+        bpAttr.append_to = this.bar_group;
+
+        this.$baseplan = createSVG('rect', bpAttr);
+
+        animateSVG(this.$baseplan, 'width', 0, this.bpWidth);
     }
 
     draw_bar() {
+        let barAttr = {
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height,
+            rx: this.corner_radius,
+            ry: this.corner_radius,
+            class: 'bar',
+            append_to: this.bar_group,
+        };
+
+        if (typeof this.gantt.options.hooks?.svgBar === 'function') {
+            const custAttr = this.gantt.options.hooks.svgBar(this.task, barAttr);
+            Object.assign(barAttr, custAttr || {});
+        }
+
+        barAttr.append_to = this.bar_group;
+
         this.$bar = createSVG('rect', {
             x: this.x,
             y: this.y,
@@ -802,9 +866,9 @@ class Bar {
         return parseInt(progress, 10);
     }
 
-    compute_x() {
+    compute_x(start) {
         const { step, column_width } = this.gantt.options;
-        const task_start = this.task._start;
+        const task_start = start || this.task._start;
         const gantt_start = this.gantt.gantt_start;
 
         const diff = date_utils.diff(task_start, gantt_start, 'hour');
@@ -1092,6 +1156,7 @@ class Gantt {
         // initialize with default view mode
         this.change_view_mode();
         this.bind_events();
+        this.baseplan_visible(this.options.baseplan);
     }
 
     setup_wrapper(element) {
@@ -1111,7 +1176,7 @@ class Gantt {
         } else {
             throw new TypeError(
                 'Frappé Gantt only supports usage of a string CSS selector,' +
-                    " HTML DOM element or SVG DOM element for the 'element' parameter"
+                " HTML DOM element or SVG DOM element for the 'element' parameter"
             );
         }
 
@@ -1156,6 +1221,14 @@ class Gantt {
             popup_trigger: 'click',
             custom_popup_html: null,
             language: 'en',
+            baseplan: true,
+            hooks: {
+                svgGridRow: attr => attr,
+                svgBar: attr => attr,
+                svgBaseplan: attr => attr,
+                beforeDrawBar: () => {},
+                afterDrawBar: () => {},
+            }
         };
         this.options = Object.assign({}, default_options, options);
     }
@@ -1166,6 +1239,11 @@ class Gantt {
             // convert to Date objects
             task._start = date_utils.parse(task.start);
             task._end = date_utils.parse(task.end);
+
+            if (task.baseplan?.start && task.baseplan?.end) {
+                task._bp_start = date_utils.parse(task.baseplan.start);
+                task._bp_end = date_utils.parse(task.baseplan.end);
+            }
 
             // make task invalid if duration too large
             if (date_utils.diff(task._end, task._start, 'year') > 10) {
@@ -1376,7 +1454,7 @@ class Gantt {
             this.options.header_height +
             this.options.padding +
             (this.options.bar_height + this.options.padding) *
-                this.tasks.length;
+            this.tasks.length;
 
         createSVG('rect', {
             x: 0,
@@ -1403,14 +1481,19 @@ class Gantt {
         let row_y = this.options.header_height + this.options.padding / 2;
 
         for (let task of this.tasks) {
-            createSVG('rect', {
+            let rectAttr = {
                 x: 0,
                 y: row_y,
                 width: row_width,
                 height: row_height,
                 class: 'grid-row',
                 append_to: rows_layer,
-            });
+            };
+            if (typeof this.options.hooks?.svgGridRow === 'function') {
+                const custAttr = this.options.hooks.svgGridRow(task, rectAttr);
+                Object.assign(rectAttr, custAttr || {});
+            }
+            createSVG('rect', rectAttr);
 
             createSVG('line', {
                 x1: 0,
@@ -1493,7 +1576,7 @@ class Gantt {
             const width = this.options.column_width;
             const height =
                 (this.options.bar_height + this.options.padding) *
-                    this.tasks.length +
+                this.tasks.length +
                 this.options.header_height +
                 this.options.padding / 2;
 
@@ -1580,10 +1663,10 @@ class Gantt {
                 date.getDate() !== last_date.getDate()
                     ? date.getMonth() !== last_date.getMonth()
                         ? date_utils.format(
-                              date,
-                              'D MMM',
-                              this.options.language
-                          )
+                            date,
+                            'D MMM',
+                            this.options.language
+                        )
                         : date_utils.format(date, 'D', this.options.language)
                     : '',
             Day_upper:
@@ -1697,7 +1780,7 @@ class Gantt {
 
         const scroll_pos =
             (hours_before_first_task / this.options.step) *
-                this.options.column_width -
+            this.options.column_width -
             this.options.column_width;
 
         parent_element.scrollLeft = scroll_pos;
@@ -1990,6 +2073,14 @@ class Gantt {
      */
     clear() {
         this.$svg.innerHTML = '';
+    }
+
+    baseplan_visible(visible = true) {
+        if (visible) {
+            this.$svg?.classList.add('baseplan-visible');
+        } else {
+            this.$svg?.classList.remove('baseplan-visible');
+        }
     }
 }
 

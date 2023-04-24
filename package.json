@@ -1,7 +1,7 @@
 {
-  "name": "frappe-gantt",
-  "version": "0.6.1",
-  "description": "A simple, modern, interactive gantt library for the web",
+  "name": "frappe-gantt-x",
+  "version": "0.7.0",
+  "description": "Fork of https://github.com/frappe/gantt.git with hooks",
   "main": "src/index.js",
   "scripts": {
     "start": "yarn run dev",
@@ -29,7 +29,6 @@
     "interactive gantt",
     "project management"
   ],
-  "author": "Faris Ansari",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/frappe/gantt/issues"

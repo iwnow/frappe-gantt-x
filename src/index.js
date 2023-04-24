@@ -23,6 +23,7 @@ export default class Gantt {
         // initialize with default view mode
         this.change_view_mode();
         this.bind_events();
+        this.baseplan_visible(this.options.baseplan);
     }
 
     setup_wrapper(element) {
@@ -42,7 +43,7 @@ export default class Gantt {
         } else {
             throw new TypeError(
                 'Frappé Gantt only supports usage of a string CSS selector,' +
-                    " HTML DOM element or SVG DOM element for the 'element' parameter"
+                " HTML DOM element or SVG DOM element for the 'element' parameter"
             );
         }
 
@@ -87,6 +88,14 @@ export default class Gantt {
             popup_trigger: 'click',
             custom_popup_html: null,
             language: 'en',
+            baseplan: true,
+            hooks: {
+                svgGridRow: attr => attr,
+                svgBar: attr => attr,
+                svgBaseplan: attr => attr,
+                beforeDrawBar: () => {},
+                afterDrawBar: () => {},
+            }
         };
         this.options = Object.assign({}, default_options, options);
     }
@@ -97,6 +106,11 @@ export default class Gantt {
             // convert to Date objects
             task._start = date_utils.parse(task.start);
             task._end = date_utils.parse(task.end);
+
+            if (task.baseplan?.start && task.baseplan?.end) {
+                task._bp_start = date_utils.parse(task.baseplan.start);
+                task._bp_end = date_utils.parse(task.baseplan.end);
+            }
 
             // make task invalid if duration too large
             if (date_utils.diff(task._end, task._start, 'year') > 10) {
@@ -307,7 +321,7 @@ export default class Gantt {
             this.options.header_height +
             this.options.padding +
             (this.options.bar_height + this.options.padding) *
-                this.tasks.length;
+            this.tasks.length;
 
         createSVG('rect', {
             x: 0,
@@ -334,14 +348,19 @@ export default class Gantt {
         let row_y = this.options.header_height + this.options.padding / 2;
 
         for (let task of this.tasks) {
-            createSVG('rect', {
+            let rectAttr = {
                 x: 0,
                 y: row_y,
                 width: row_width,
                 height: row_height,
                 class: 'grid-row',
                 append_to: rows_layer,
-            });
+            };
+            if (typeof this.options.hooks?.svgGridRow === 'function') {
+                const custAttr = this.options.hooks.svgGridRow(task, rectAttr);
+                Object.assign(rectAttr, custAttr || {});
+            }
+            createSVG('rect', rectAttr);
 
             createSVG('line', {
                 x1: 0,
@@ -424,7 +443,7 @@ export default class Gantt {
             const width = this.options.column_width;
             const height =
                 (this.options.bar_height + this.options.padding) *
-                    this.tasks.length +
+                this.tasks.length +
                 this.options.header_height +
                 this.options.padding / 2;
 
@@ -511,10 +530,10 @@ export default class Gantt {
                 date.getDate() !== last_date.getDate()
                     ? date.getMonth() !== last_date.getMonth()
                         ? date_utils.format(
-                              date,
-                              'D MMM',
-                              this.options.language
-                          )
+                            date,
+                            'D MMM',
+                            this.options.language
+                        )
                         : date_utils.format(date, 'D', this.options.language)
                     : '',
             Day_upper:
@@ -628,7 +647,7 @@ export default class Gantt {
 
         const scroll_pos =
             (hours_before_first_task / this.options.step) *
-                this.options.column_width -
+            this.options.column_width -
             this.options.column_width;
 
         parent_element.scrollLeft = scroll_pos;
@@ -921,6 +940,14 @@ export default class Gantt {
      */
     clear() {
         this.$svg.innerHTML = '';
+    }
+
+    baseplan_visible(visible = true) {
+        if (visible) {
+            this.$svg?.classList.add('baseplan-visible');
+        } else {
+            this.$svg?.classList.remove('baseplan-visible');
+        }
     }
 }
 

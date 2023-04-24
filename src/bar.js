@@ -23,6 +23,7 @@ export default class Bar {
     prepare_values() {
         this.invalid = this.task.invalid;
         this.height = this.gantt.options.bar_height;
+        this.hasBaseplan = !!this.task._bp_start && !!this.task._bp_end;
         this.x = this.compute_x();
         this.y = this.compute_y();
         this.corner_radius = this.gantt.options.bar_corner_radius;
@@ -32,8 +33,16 @@ export default class Bar {
         this.width = this.gantt.options.column_width * this.duration;
         this.progress_width =
             this.gantt.options.column_width *
-                this.duration *
-                (this.task.progress / 100) || 0;
+            this.duration *
+            (this.task.progress / 100) || 0;
+
+        if (this.hasBaseplan) {
+            this.bpDuration =
+                date_utils.diff(this.task._bp_end, this.task._bp_start, 'hour') /
+                this.gantt.options.step;
+            this.bpWidth = this.gantt.options.column_width * this.bpDuration;
+            this.bpX = this.compute_x(this.task._bp_start);
+        }
         this.group = createSVG('g', {
             class: 'bar-wrapper ' + (this.task.custom_class || ''),
             'data-id': this.task.id,
@@ -67,13 +76,68 @@ export default class Bar {
     }
 
     draw() {
+        if (typeof this.gantt.options.hooks?.beforeDrawBar === 'function') {
+            this.gantt.options.hooks.beforeDrawBar(this);
+        }
+
+        this.draw_baseplan();
         this.draw_bar();
         this.draw_progress_bar();
         this.draw_label();
         this.draw_resize_handles();
+
+        if (typeof this.gantt.options.hooks?.afterDrawBar === 'function') {
+            this.gantt.options.hooks.afterDrawBar(this);
+        }
+    }
+
+    draw_baseplan() {
+        if (!this.hasBaseplan) {
+            return;
+        }
+
+        let bpAttr = {
+            x: this.bpX,
+            y: this.y - 4,
+            width: this.bpWidth,
+            height: this.height + 8,
+            rx: this.corner_radius,
+            ry: this.corner_radius,
+            'stroke-dasharray': 4,
+            class: `bar bar-baseplan ${this.task.baseplan.custom_class || ''}`,
+        }
+
+        if (typeof this.gantt.options.hooks?.svgBaseplan === 'function') {
+            const custAttr = this.gantt.options.hooks.svgBaseplan(this.task, bpAttr);
+            Object.assign(bpAttr, custAttr || {});
+        }
+
+        bpAttr.append_to = this.bar_group;
+
+        this.$baseplan = createSVG('rect', bpAttr);
+
+        animateSVG(this.$baseplan, 'width', 0, this.bpWidth);
     }
 
     draw_bar() {
+        let barAttr = {
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height,
+            rx: this.corner_radius,
+            ry: this.corner_radius,
+            class: 'bar',
+            append_to: this.bar_group,
+        };
+
+        if (typeof this.gantt.options.hooks?.svgBar === 'function') {
+            const custAttr = this.gantt.options.hooks.svgBar(this.task, barAttr);
+            Object.assign(barAttr, custAttr || {});
+        }
+
+        barAttr.append_to = this.bar_group;
+
         this.$bar = createSVG('rect', {
             x: this.x,
             y: this.y,
@@ -303,9 +367,9 @@ export default class Bar {
         return parseInt(progress, 10);
     }
 
-    compute_x() {
+    compute_x(start) {
         const { step, column_width } = this.gantt.options;
-        const task_start = this.task._start;
+        const task_start = start || this.task._start;
         const gantt_start = this.gantt.gantt_start;
 
         const diff = date_utils.diff(task_start, gantt_start, 'hour');
