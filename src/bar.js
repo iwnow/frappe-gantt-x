@@ -138,16 +138,7 @@ export default class Bar {
 
         barAttr.append_to = this.bar_group;
 
-        this.$bar = createSVG('rect', {
-            x: this.x,
-            y: this.y,
-            width: this.width,
-            height: this.height,
-            rx: this.corner_radius,
-            ry: this.corner_radius,
-            class: 'bar',
-            append_to: this.bar_group,
-        });
+        this.$bar = createSVG('rect', barAttr);
 
         animateSVG(this.$bar, 'width', 0, this.width);
 
@@ -273,7 +264,20 @@ export default class Bar {
             'MMM D',
             this.gantt.options.language
         );
-        const subtitle = start_date + ' - ' + end_date;
+        let subtitle = start_date + ' - ' + end_date;
+        if (this.hasBaseplan) {
+            const bp_start_date = date_utils.format(
+                this.task._bp_start,
+                'MMM D',
+                this.gantt.options.language
+            );
+            const bp_end_date = date_utils.format(
+                date_utils.add(this.task._bp_end, -1, 'second'),
+                'MMM D',
+                this.gantt.options.language
+            );
+            subtitle += ` (${bp_start_date} - ${bp_end_date}) `;
+        }
 
         this.gantt.show_popup({
             target_element: this.$bar,

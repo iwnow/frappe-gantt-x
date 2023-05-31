@@ -640,16 +640,7 @@ var Gantt = (function () {
 
             barAttr.append_to = this.bar_group;
 
-            this.$bar = createSVG('rect', {
-                x: this.x,
-                y: this.y,
-                width: this.width,
-                height: this.height,
-                rx: this.corner_radius,
-                ry: this.corner_radius,
-                class: 'bar',
-                append_to: this.bar_group,
-            });
+            this.$bar = createSVG('rect', barAttr);
 
             animateSVG(this.$bar, 'width', 0, this.width);
 
@@ -775,7 +766,20 @@ var Gantt = (function () {
                 'MMM D',
                 this.gantt.options.language
             );
-            const subtitle = start_date + ' - ' + end_date;
+            let subtitle = start_date + ' - ' + end_date;
+            if (this.hasBaseplan) {
+                const bp_start_date = date_utils.format(
+                    this.task._bp_start,
+                    'MMM D',
+                    this.gantt.options.language
+                );
+                const bp_end_date = date_utils.format(
+                    date_utils.add(this.task._bp_end, -1, 'second'),
+                    'MMM D',
+                    this.gantt.options.language
+                );
+                subtitle += ` (${bp_start_date} - ${bp_end_date}) `;
+            }
 
             this.gantt.show_popup({
                 target_element: this.$bar,
@@ -1229,8 +1233,8 @@ var Gantt = (function () {
                     svgGridRow: attr => attr,
                     svgBar: attr => attr,
                     svgBaseplan: attr => attr,
-                    beforeDrawBar: () => {},
-                    afterDrawBar: () => {},
+                    beforeDrawBar: () => { },
+                    afterDrawBar: () => { },
                 }
             };
             this.options = Object.assign({}, default_options, options);
@@ -1429,6 +1433,49 @@ var Gantt = (function () {
             this.map_arrows_on_bars();
             this.set_width();
             this.set_scroll_position();
+            this.renderCurrentTimeLabel();
+        }
+
+        renderCurrentTimeLabel() {
+            const now = new Date();
+            if (now < this.dates[0] || this.dates[this.dates.length - 1] < now) {
+                return;
+            }
+            const difftime = this.dates[1].getTime() - this.dates[0].getTime();
+            const minutes = (this.dates[this.dates.length - 1].getTime() - this.dates[0].getTime() + difftime) / 60_000;
+            const width = +this.$svg.attributes.width.value;
+            const pxpm = minutes / width;
+            const x = (now.getTime() - this.dates[0].getTime()) / (60_000 * pxpm);
+            const lastGridRow = this.$svg.querySelector('.grid .grid-row:last-child');
+            const y2 = +lastGridRow.attributes.y.value + +lastGridRow.attributes.height.value;
+            createSVG('line', {
+                x1: x,
+                x2: x,
+                y1: 60,
+                y2: y2,
+                stroke: "red",
+                class: 'now-label',
+                append_to: this.$svg,
+            });
+            const g = createSVG('g', { append_to: this.$svg });
+            createSVG('rect', {
+                x: x,
+                y: 40,
+                width: this.options?.todayLabel?.width || 55,
+                height: 20,
+                class: 'now-label',
+                fill: 'red',
+                append_to: g,
+            });
+            const text = createSVG('text', {
+                x: x + 4,
+                y: 54,
+                height: 20,
+                class: 'now-label-text',
+                fill: 'white',
+                append_to: g,
+            });
+            text.textContent = this.options?.todayLabel?.text || 'Сегодня';
         }
 
         setup_layers() {
@@ -1815,7 +1862,7 @@ var Gantt = (function () {
                 return is_dragging || is_resizing_left || is_resizing_right;
             }
 
-            $.on(this.$svg, 'mousedown', '.bar-wrapper, .handle', (e, element) => {
+            $.on(this.$svg, 'mousedown', '.bar-wrapper:not(.readonly), .bar-wrapper:not(.readonly) .handle', (e, element) => {
                 const bar_wrapper = $.closest('.bar-wrapper', element);
 
                 if (element.classList.contains('left')) {
@@ -1912,7 +1959,7 @@ var Gantt = (function () {
             let $bar_progress = null;
             let $bar = null;
 
-            $.on(this.$svg, 'mousedown', '.handle.progress', (e, handle) => {
+            $.on(this.$svg, 'mousedown', '.bar-wrapper:not(.readonly) .handle.progress', (e, handle) => {
                 is_resizing = true;
                 x_on_start = e.offsetX;
                 y_on_start = e.offsetY;

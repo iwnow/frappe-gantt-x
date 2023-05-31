@@ -116,6 +116,10 @@
 .gantt.baseplan-visible .bar-baseplan {
   display: initial;
 }
+.gantt .bar-wrapper.readonly .handle {
+  visibility: hidden;
+  cursor: default;
+}
 
 .gantt-container {
   position: relative;

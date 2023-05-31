@@ -152,6 +152,13 @@ $baseplanColor: #b8c2cc36 !default;
 			display: initial;
 		}
 	}
+    .bar-wrapper.readonly {
+
+        .handle {
+            visibility: hidden;
+            cursor: default;
+        }
+    }
 }
 
 .gantt-container {
