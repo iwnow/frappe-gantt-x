@@ -1,118 +1,284 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<title>Simple Gantt</title>
-	<style>
-		body {
-			font-family: sans-serif;
-			background: #ccc;
-		}
-		.container {
-			width: 80%;
-			margin: 0 auto;
-		}
-		/* custom class */
-		.gantt .bar-milestone .bar {
-			fill: tomato;
-		}
-		.heading {
-			text-align: center;
-		}
-	</style>
-	<link rel="stylesheet" href="dist/frappe-gantt.css" />
-	<script src="dist/frappe-gantt.js"></script>
-</head>
-<body>
-	<div class="container">
-		<h2 class="heading">Interactive Gantt Chart entirely made in SVG!</h2>
-		<div class="gantt-target"></div>
-	</div>
-	<script>
-		var tasks = [
-			{
-				start: '2023-06-01',
-				end: '2023-06-08',
-				name: 'Redesign website',
-				id: "Task 0",
-				progress: 20,
-				baseplan: {
-					start: '2023-05-25',
-					end: '2023-06-04',
-				}
-			},
-			{
-				start: '2023-06-03',
-				end: '2023-06-06',
-				name: 'Write new content',
-				id: "Task 1",
-				progress: 5,
-				dependencies: 'Task 0',
-				custom_class: 'readonly'
-			},
-			{
-				start: '2023-06-04',
-				end: '2023-06-08',
-				name: 'Apply new styles',
-				id: "Task 2",
-				progress: 10,
-				dependencies: 'Task 1'
-			},
-			{
-				start: '2023-06-08',
-				end: '2023-06-09',
-				name: 'Review',
-				id: "Task 3",
-				progress: 5,
-				dependencies: 'Task 2'
-			},
-			{
-				start: '2023-06-08',
-				end: '2023-06-10',
-				name: 'Deploy',
-				id: "Task 4",
-				progress: 0,
-				dependencies: 'Task 2'
-			},
-			{
-				start: '2023-06-11',
-				end: '2023-06-11',
-				name: 'Go Live!',
-				id: "Task 5",
-				progress: 0,
-				dependencies: 'Task 4',
-				custom_class: 'bar-milestone'
-			},
-		]
-		var gantt_chart = new Gantt(".gantt-target", tasks, {
-			on_click: task => {
-				console.log(task);
-			},
-			on_date_change: (task, start, end) => {
-				console.log(task, start, end);
-			},
-			on_progress_change: (task, progress) => {
-				console.log(task, progress);
-			},
-			on_view_change: (mode) => {
-				console.log(mode);
-			},
-			view_mode: 'Day',
-			language: 'en',
-			hooks: {
-				svgGridRow: (task, attr) => {
-					attr.class = (attr.class || '') + ' my-row ';
-				},
-				svgBar: (task, attr) => {
-					attr.class = (attr.class || '') + ' my-bar ';
-				},
-			},
-			todayLabel: {
-				text: 'Сегодня',
-				width: 54
-			}
-		});
-		console.log(gantt_chart);
-	</script>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Simple Gantt</title>
+        <style>
+            body {
+                font-family: sans-serif;
+                background: #ccc;
+            }
+            .container {
+                width: 80%;
+                margin: 0 auto;
+            }
+            /* custom class */
+            .gantt .bar-milestone .bar {
+                fill: tomato;
+            }
+            .heading {
+                text-align: center;
+            }
+        </style>
+        <link rel="stylesheet" href="dist/frappe-gantt.css" />
+        <script src="dist/frappe-gantt.js"></script>
+    </head>
+    <body>
+        <div class="container">
+            <h2 class="heading">
+                Interactive Gantt Chart entirely made in SVG!
+            </h2>
+            <div class="gantt-target"></div>
+        </div>
+        <script>
+            var tasks = [
+                {
+                    start: '2023-06-01',
+                    end: '2023-06-08',
+                    name: 'Redesign website',
+                    id: 'Task 0',
+                    progress: 20,
+                    baseplan: {
+                        start: '2023-05-25',
+                        end: '2023-06-04',
+                    },
+                },
+                {
+                    start: '2023-06-03',
+                    end: '2023-06-06',
+                    name: 'Write new content',
+                    id: 'Task 1',
+                    progress: 5,
+                    dependencies: 'Task 0',
+                    custom_class: 'readonly',
+                },
+                {
+                    start: '2023-06-04',
+                    end: '2023-06-08',
+                    name: 'Apply new styles',
+                    id: 'Task 2',
+                    progress: 10,
+                    dependencies: 'Task 1',
+                },
+                {
+                    start: '2023-06-08',
+                    end: '2023-06-09',
+                    name: 'Review',
+                    id: 'Task 3',
+                    progress: 5,
+                    dependencies: 'Task 2',
+                },
+                {
+                    start: '2023-06-08',
+                    end: '2023-06-10',
+                    name: 'Deploy',
+                    id: 'Task 4',
+                    progress: 0,
+                    dependencies: 'Task 2',
+                },
+                {
+                    start: '2023-06-11',
+                    end: '2023-06-11',
+                    name: 'Go Live!',
+                    id: 'Task 5',
+                    progress: 0,
+                    dependencies: 'Task 4',
+                    custom_class: 'bar-milestone',
+                },
+            ];
+            var gantt_chart = new Gantt('.gantt-target', tasks, {
+                on_click: (task) => {
+                    toggleBars(task);
+                },
+                on_date_change: (task, start, end) => {
+                    console.log(task, start, end);
+                },
+                on_progress_change: (task, progress) => {
+                    console.log(task, progress);
+                },
+                on_view_change: (mode) => {
+                    console.log(mode);
+                },
+                view_mode: 'Day',
+                language: 'en',
+                hooks: {
+                    svgGridRow: (task, attr) => {
+                        attr.class = (attr.class || '') + ' my-row ';
+                    },
+                    svgBar: (task, attr) => {
+                        attr.class = (attr.class || '') + ' my-bar ';
+                    },
+                },
+                todayLabel: {
+                    text: 'Сегодня',
+                    width: 54,
+                },
+                popup_trigger: 'mouseover',
+            });
+            console.log(gantt_chart);
+
+            tasks.forEach((task) => {
+                task.children = gantt_chart.get_all_dependent_tasks(task.id);
+                task.display = '';
+                task.parent = '';
+                task.collapsed = '';
+            });
+            let tasks_all = {};
+            gantt_chart.tasks.forEach((item) => {
+                tasks_all[item.id] = item;
+            });
+            gantt_chart.tasks_all = tasks_all;
+            gantt_chart.parents = [];
+            gantt_chart.tasks_to_display = gantt_chart.tasks;
+
+            function toggleBars(task) {
+                let children = task.children;
+
+                let index = gantt_chart.parents.indexOf(task.id);
+                index === -1
+                    ? gantt_chart.parents.push(task.id)
+                    : gantt_chart.parents.splice(index, 1);
+
+                gantt_chart.tasks_to_display.map((item) => {
+                    let indexChild = children.indexOf(item.id);
+                    if (indexChild !== -1) {
+                        if (!item.display && !item.parent) {
+                            item.display = 'none';
+                            item.parent = task.id;
+                        } else if (!item.display && item.parent) {
+                            item.display = item.display;
+                            item.parent = item.parent;
+                        } else if (item.display && item.parent !== task.id) {
+                            item.display = item.display;
+                            item.parent = item.parent;
+                        } else {
+                            item.display = '';
+                            item.parent = '';
+                        }
+                    } else if (item.id === task.id) {
+                        item.collapsed = !item.collapsed ? true : '';
+                    } else if (item.id !== task.id) {
+                        item.collapsed = item.collapsed;
+                    }
+
+                    gantt_chart.tasks_all[item.id] = item;
+
+                    return item;
+                });
+
+                gantt_chart.refresh(
+                    gantt_chart.tasks_to_display.filter((task) => !task.display)
+                );
+
+                let check =
+                    gantt_chart.tasks_to_display.length !==
+                    gantt_chart.tasks.length;
+                gantt_chart.parents = !check ? [] : gantt_chart.parents;
+
+                toggleClassBars(check);
+            }
+
+            // add or remove class to element bar
+            function toggleClassBars(check) {
+                document
+                    .querySelectorAll('.bar-wrapper')
+                    .forEach((el) =>
+                        gantt_chart.parents.indexOf(el.dataset.id) !== -1 &&
+                        check
+                            ? el.classList.add('parent')
+                            : el.classList.remove('parent')
+                    );
+            }
+
+            function collapseAll() {
+                let tasks = gantt_chart.tasks_to_display
+                    ? gantt_chart.tasks_to_display
+                    : gantt_chart.tasks;
+                tasks.map((task) => {
+                    if (!task.collapsed) {
+                        toggleBars(task);
+                    }
+                });
+            }
+
+            function expandBars(task) {
+                let tasks = gantt_chart.tasks_to_display
+                    ? gantt_chart.tasks_to_display
+                    : gantt_chart.tasks;
+                let tasks_to_display;
+
+                if (!task) {
+                    tasks_to_display = tasks.map((item) => {
+                        item.display = '';
+                        item.parent = '';
+                        item.collapsed = '';
+                        gantt_chart.tasks_all[item.id] = item;
+                        return item;
+                    });
+                    gantt_chart.parents = [];
+                } else {
+                    let index = gantt_chart.parents.indexOf(task.id);
+                    if (task.collapsed && index !== -1)
+                        gantt_chart.parents.splice(index, 1);
+
+                    tasks_to_display = tasks.map((item) => {
+                        if (task.children.indexOf(item.id) !== -1) {
+                            index = gantt_chart.parents.indexOf(item.id);
+                            if (index !== -1)
+                                gantt_chart.parents.splice(index, 1);
+
+                            item.display = '';
+                            item.parent = '';
+                            item.collapsed = '';
+                        } else if (task.id === item.id) {
+                            item.display = '';
+                            item.parent = '';
+                            item.collapsed = '';
+                        } else {
+                            item.display = item.display;
+                            item.parent = item.parent;
+                            item.collapsed = item.collapsed;
+                        }
+
+                        gantt_chart.tasks_all[item.id] = item;
+
+                        return item;
+                    });
+                }
+
+                gantt_chart.tasks_to_display = tasks_to_display;
+                let check =
+                    gantt_chart.tasks_to_display.length !==
+                    gantt_chart.tasks.length;
+                gantt_chart.refresh(
+                    tasks_to_display.filter((task) => !task.display)
+                );
+
+                toggleClassBars(check);
+            }
+
+            // mousedown event to capture gantt_chart property "bar_being_dragged"
+            document.addEventListener('mousedown', handleMouseDown, false);
+
+            function handleMouseDown(event) {
+                if (!event.target.parentNode.classList.contains('bar-group'))
+                    return;
+
+                let taskId = gantt_chart.bar_being_dragged;
+                let task = gantt_chart.get_task(taskId);
+
+                if (task?.children) {
+                    let children = task.children
+                        .map((item) => gantt_chart.tasks_all[item])
+                        .filter((item) => item.collapsed);
+
+                    if (task.collapsed) {
+                        expandBars(task);
+                    } else if (!task.collapsed && children.length >= 1) {
+                        children.forEach((item) => expandBars(item));
+                    }
+                }
+            }
+        </script>
+    </body>
 </html>

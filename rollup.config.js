@@ -6,7 +6,7 @@ const inputPath = 'src/index.js';
 const libName = 'Gantt';
 const outFileName = 'frappe-gantt';
 
-export default [config(), config(true)];
+export default [config(), config({ prod: true })];
 
 
 function config(options) {
