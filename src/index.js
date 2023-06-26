@@ -24,6 +24,10 @@ export default class Gantt {
         this.change_view_mode();
         this.bind_events();
         this.baseplan_visible(this.options.baseplan);
+        //for toggles
+        // mousedown event to capture gantt_chart property "bar_being_dragged"
+        // this.$svg.addEventListener('mousedown', this.handleMouseDown.bind(this), false);
+        this.setup_toggle();
     }
 
     setup_wrapper(element) {
@@ -183,6 +187,11 @@ export default class Gantt {
     refresh(tasks) {
         this.setup_tasks(tasks);
         this.change_view_mode();
+    }
+
+    forceRefresh(tasks) {
+        this.refresh(tasks);
+        this.setup_toggle();
     }
 
     change_view_mode(mode = this.options.view_mode) {
@@ -957,6 +966,8 @@ export default class Gantt {
     }
 
     trigger_event(event, args) {
+        args = Array.isArray(args) ? args : [args];
+        args.push(this);
         if (this.options['on_' + event]) {
             this.options['on_' + event].apply(null, args);
         }
@@ -990,6 +1001,170 @@ export default class Gantt {
             this.$svg?.classList.add('baseplan-visible');
         } else {
             this.$svg?.classList.remove('baseplan-visible');
+        }
+    }
+
+    setup_toggle() {
+        // https://codepen.io/jean2607/pen/YzYyVzE
+
+        this.tasks.forEach((task) => {
+            task.children = this.get_all_dependent_tasks(task.id);
+            task.display = '';
+            task.parent = '';
+            task.collapsed = '';
+        });
+        let tasks_all = {};
+        this.tasks.forEach((item) => {
+            tasks_all[item.id] = item;
+        });
+        this.tasks_all = tasks_all;
+        this.parents = [];
+        this.tasks_to_display = this.tasks;
+    }
+
+    toggleBars(task) {
+        let children = task.children;
+
+        let index = this.parents.indexOf(task.id);
+        index === -1
+            ? this.parents.push(task.id)
+            : this.parents.splice(index, 1);
+
+        this.tasks_to_display.map((item) => {
+            let indexChild = children.indexOf(item.id);
+            if (indexChild !== -1) {
+                if (!item.display && !item.parent) {
+                    item.display = 'none';
+                    item.parent = task.id;
+                } else if (!item.display && item.parent) {
+                    item.display = item.display;
+                    item.parent = item.parent;
+                } else if (item.display && item.parent !== task.id) {
+                    item.display = item.display;
+                    item.parent = item.parent;
+                } else {
+                    item.display = '';
+                    item.parent = '';
+                }
+            } else if (item.id === task.id) {
+                item.collapsed = !item.collapsed ? true : '';
+            } else if (item.id !== task.id) {
+                item.collapsed = item.collapsed;
+            }
+
+            this.tasks_all[item.id] = item;
+
+            return item;
+        });
+
+        this.refresh(
+            this.tasks_to_display.filter((task) => !task.display)
+        );
+
+        let check =
+            this.tasks_to_display.length !==
+            this.tasks.length;
+        this.parents = !check ? [] : this.parents;
+
+        this.toggleClassBars(check);
+    }
+
+    // add or remove class to element bar
+    toggleClassBars(check) {
+        this.$svg
+            .querySelectorAll('.bar-wrapper')
+            .forEach((el) =>
+                this.parents.indexOf(el.dataset.id) !== -1 &&
+                check
+                    ? el.classList.add('parent')
+                    : el.classList.remove('parent')
+            );
+    }
+
+    collapseAll() {
+        let tasks = this.tasks_to_display
+            ? this.tasks_to_display
+            : this.tasks;
+        tasks.map((task) => {
+            if (!task.collapsed) {
+                toggleBars(task);
+            }
+        });
+    }
+
+    expandBars(task) {
+        let tasks = this.tasks_to_display
+            ? this.tasks_to_display
+            : this.tasks;
+        let tasks_to_display;
+
+        if (!task) {
+            tasks_to_display = tasks.map((item) => {
+                item.display = '';
+                item.parent = '';
+                item.collapsed = '';
+                this.tasks_all[item.id] = item;
+                return item;
+            });
+            this.parents = [];
+        } else {
+            let index = this.parents.indexOf(task.id);
+            if (task.collapsed && index !== -1)
+                this.parents.splice(index, 1);
+
+            tasks_to_display = tasks.map((item) => {
+                if (task.children.indexOf(item.id) !== -1) {
+                    index = this.parents.indexOf(item.id);
+                    if (index !== -1)
+                        this.parents.splice(index, 1);
+
+                    item.display = '';
+                    item.parent = '';
+                    item.collapsed = '';
+                } else if (task.id === item.id) {
+                    item.display = '';
+                    item.parent = '';
+                    item.collapsed = '';
+                } else {
+                    item.display = item.display;
+                    item.parent = item.parent;
+                    item.collapsed = item.collapsed;
+                }
+
+                this.tasks_all[item.id] = item;
+
+                return item;
+            });
+        }
+
+        this.tasks_to_display = tasks_to_display;
+        let check =
+            this.tasks_to_display.length !==
+            this.tasks.length;
+        this.refresh(
+            tasks_to_display.filter((task) => !task.display)
+        );
+
+        this.toggleClassBars(check);
+    }
+
+    handleMouseDown(event) {
+        if (!event.target.parentNode.classList.contains('bar-group'))
+            return;
+
+        let taskId = this.bar_being_dragged;
+        let task = this.get_task(taskId);
+
+        if (task?.children) {
+            let children = task.children
+                .map((item) => this.tasks_all[item])
+                .filter((item) => item.collapsed);
+
+            if (task.collapsed) {
+                this.expandBars(task);
+            } else if (!task.collapsed && children.length >= 1) {
+                children.forEach((item) => this.expandBars(item));
+            }
         }
     }
 }
